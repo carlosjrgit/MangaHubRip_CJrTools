@@ -575,4 +575,15 @@ QSplitter::handle {{
 QSplitter::handle:hover {{
     background-color: {COLOR_ACCENT};
 }}
+
+/* Área de Rolagem Responsiva da Fila */
+QScrollArea#QueueScrollArea {{
+    background-color: transparent;
+    border: none;
+}}
+
+QScrollArea#QueueScrollArea > QWidget > QWidget {{
+    background-color: transparent;
+}}
 """
+

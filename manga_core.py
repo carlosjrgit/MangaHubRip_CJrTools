@@ -1,8 +1,5 @@
-#!/usr/bin/env python3
-"""
-manga_core.py - Núcleo de gerenciamento de downloads, fila de tarefas,
-estimativas de tempo/tamanho, persistência e controle de execução (Pause/Resume/Stop).
-"""
+"""Núcleo de download, tarefas, estimativas e controle de execução."""
+
 
 import html
 import json
@@ -25,9 +22,6 @@ from urllib3.util.retry import Retry
 
 logger = logging.getLogger("manga_core")
 
-# ----------------------------------------------------------------------
-# Constantes globais
-# ----------------------------------------------------------------------
 DEFAULT_WORKERS = 4
 STATE_FILE = "queue_state.json"
 MANGADEX_RATINGS = "&".join([
@@ -154,9 +148,6 @@ class QueueTask:
         return cls(**data_copy)
 
 
-# ----------------------------------------------------------------------
-# Funções Utilitárias & Hardening de Filesystem
-# ----------------------------------------------------------------------
 WINDOWS_RESERVED_NAMES: Set[str] = {
     "CON", "PRN", "AUX", "NUL",
     "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
@@ -288,9 +279,6 @@ def create_session() -> requests.Session:
     return session
 
 
-# ----------------------------------------------------------------------
-# Filtro e Seleção de Capítulos
-# ----------------------------------------------------------------------
 def parse_chapter_selection(
     all_chapters: List[Dict[str, Any]],
     mode: ChapterMode,
@@ -395,9 +383,6 @@ def parse_chapter_selection(
     return selected
 
 
-# ----------------------------------------------------------------------
-# MangaDex API Helpers
-# ----------------------------------------------------------------------
 GROUP_CACHE: Dict[str, str] = {}
 
 
@@ -514,9 +499,6 @@ def get_mangadex_group_names(chapter: Dict[str, Any], session: requests.Session)
     return " & ".join(names) if names else "Desconhecido"
 
 
-# ----------------------------------------------------------------------
-# Motor de Estimativa de Tamanho e Tempo
-# ----------------------------------------------------------------------
 def calculate_task_estimates(
     task: QueueTask,
     measured_speed_mb_s: float = BASELINE_DOWNLOAD_SPEED_MB_S
@@ -550,9 +532,6 @@ def calculate_task_estimates(
     return round(total_mb, 1), round(total_seconds, 1)
 
 
-# ----------------------------------------------------------------------
-# Persistência de Estado (Queue State)
-# ----------------------------------------------------------------------
 class StateManager:
     @staticmethod
     def save_queue(tasks: List[QueueTask], filepath: str = STATE_FILE) -> None:
@@ -583,9 +562,6 @@ class StateManager:
             return []
 
 
-# ----------------------------------------------------------------------
-# Motor de Download com Pause, Resume e Cancelamento
-# ----------------------------------------------------------------------
 class ExecutionController:
     """Controla eventos de Pausa e Parada coordenados entre threads."""
     def __init__(self):

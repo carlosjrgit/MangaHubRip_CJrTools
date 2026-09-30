@@ -1,9 +1,5 @@
-#!/usr/bin/env python3
-"""
-keiyoushi_dialog.py - Janela de exploração do catálogo de fontes do index.pb (Keiyoushi).
-Permite ao usuário pesquisar, filtrar por idioma e copiar/usar URLs das mais de 2.200
-fontes e extensões mapeadas.
-"""
+"""Diálogo para exploração e pesquisa nas fontes do catálogo Keiyoushi."""
+
 
 
 from PyQt5.QtCore import Qt, pyqtSignal
@@ -43,9 +39,8 @@ class KeiyoushiCatalogDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        # Cabeçalho Informativo
         header_layout = QHBoxLayout()
-        lbl_title = QLabel("📚 Catálogo Oficial Keiyoushi")
+        lbl_title = QLabel("📚 Catálogo Keiyoushi")
         lbl_title.setStyleSheet(f"font-size: 15px; font-weight: bold; color: {COLOR_TEXT_PRIMARY};")
         self.lbl_stats = QLabel("Carregando fontes...")
         self.lbl_stats.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 12px;")
@@ -55,7 +50,6 @@ class KeiyoushiCatalogDialog(QDialog):
         header_layout.addWidget(self.lbl_stats)
         layout.addLayout(header_layout)
 
-        # Barra de Filtros e Busca
         filter_layout = QHBoxLayout()
         filter_layout.setSpacing(10)
 
@@ -78,7 +72,6 @@ class KeiyoushiCatalogDialog(QDialog):
 
         layout.addLayout(filter_layout)
 
-        # Tabela de Fontes
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["Nome da Fonte", "Idioma", "URL Base / Site", "Pacote da Extensão"])
@@ -93,7 +86,6 @@ class KeiyoushiCatalogDialog(QDialog):
         self.table.doubleClicked.connect(self._on_use_selected)
         layout.addWidget(self.table)
 
-        # Botões Inferiores
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(10)
 

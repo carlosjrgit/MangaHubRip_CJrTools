@@ -1,12 +1,5 @@
-"""
-Sistema de Ícones Phosphor Icons para MangaDex_Downloader_CJrTools.
-Segue o Design System:
-- Biblioteca: Phosphor Icons
-- Peso Padrão: Regular
-- Peso Ativo/Selecionado: Fill
-- Tamanhos Padrão: 16px, 20px, 24px (padrão), 32px, 48px
-- Cores dinâmicas vetoriais em alta fidelidade.
-"""
+"""Gerenciador e renderizador de ícones vetoriais Phosphor."""
+
 
 import sys
 from pathlib import Path

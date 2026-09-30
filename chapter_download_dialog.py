@@ -1,9 +1,5 @@
-#!/usr/bin/env python3
-"""
-chapter_download_dialog.py - Modal de seleção de capítulos para envio à fila de download.
-Pergunta ao usuário quais capítulos deseja baixar (todos, intervalo, mais recente ou personalizado)
-e confirma a adição com a mensagem oficial 'Mangás foram pra fila!'.
-"""
+"""Diálogo modal para seleção de capítulos antes do envio à fila."""
+
 
 from typing import Optional
 
@@ -49,7 +45,6 @@ class ChapterDownloadDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(14)
 
-        # 1. Card com Identificação da Obra
         info_frame = QFrame()
         info_frame.setStyleSheet(f"""
             QFrame {{
@@ -79,20 +74,17 @@ class ChapterDownloadDialog(QDialog):
 
         layout.addWidget(info_frame)
 
-        # 2. Pergunta de Seleção de Capítulos
         lbl_question = QLabel("Quais capítulos você deseja baixar?")
         lbl_question.setStyleSheet(f"color: {COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600;")
         layout.addWidget(lbl_question)
 
         self.btn_group = QButtonGroup(self)
 
-        # Opção 1: Todos os capítulos (Padrão)
         self.rb_all = QRadioButton("Baixar tudo (Todos os capítulos disponíveis)")
         self.rb_all.setChecked(True)
         self.btn_group.addButton(self.rb_all)
         layout.addWidget(self.rb_all)
 
-        # Opção 2: Intervalo (ex: 1-10)
         row_range = QHBoxLayout()
         row_range.setSpacing(8)
         self.rb_range = QRadioButton("Intervalo de capítulos:")
@@ -107,12 +99,10 @@ class ChapterDownloadDialog(QDialog):
         row_range.addStretch()
         layout.addLayout(row_range)
 
-        # Opção 3: Apenas o mais recente
         self.rb_latest = QRadioButton("Apenas o capítulo mais recente")
         self.btn_group.addButton(self.rb_latest)
         layout.addWidget(self.rb_latest)
 
-        # Opção 4: Personalizado
         row_custom = QHBoxLayout()
         row_custom.setSpacing(8)
         self.rb_custom = QRadioButton("Personalizado:")
@@ -125,13 +115,11 @@ class ChapterDownloadDialog(QDialog):
         row_custom.addWidget(self.txt_custom)
         layout.addLayout(row_custom)
 
-        # Conectar toggles para habilitar campos de texto
         self.rb_all.toggled.connect(self._on_radio_toggled)
         self.rb_range.toggled.connect(self._on_radio_toggled)
         self.rb_latest.toggled.connect(self._on_radio_toggled)
         self.rb_custom.toggled.connect(self._on_radio_toggled)
 
-        # 3. Opções Complementares de Download
         opts_layout = QHBoxLayout()
         opts_layout.setSpacing(12)
 
@@ -153,7 +141,6 @@ class ChapterDownloadDialog(QDialog):
 
         layout.addLayout(opts_layout)
 
-        # 4. Botões de Confirmação e Cancelamento
         layout.addStretch()
         btn_bar = QHBoxLayout()
         btn_bar.setSpacing(10)

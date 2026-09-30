@@ -1,19 +1,5 @@
-"""
-about_dialog.py - Diálogo "Sobre" oficial do MangaHubRip_CJrTools.
-Segue rigorosamente o Design System:
-- Estética: Dark, Minimal, Flat, Geometric, Technical.
-- Exibe o card vitrine em fundo branco (#FFFFFF) para a logo CJR DOOM garantindo nitidez e contraste perfeitos.
-- Textos oficiais:
-    MangaHubRip_CJrTools
-    Version 2.0.0
+"""Diálogo 'Sobre' com informações e versão do MangaHubRip_CJrTools."""
 
-    Descrição completa da suíte desktop
-
-    Designed and developed by
-    CJRDOOM
-
-    © 2026 Carlos Junior
-"""
 
 import sys
 from pathlib import Path
@@ -65,9 +51,6 @@ class AboutDialog(QDialog):
         container_layout.setSpacing(14)
         container_layout.setAlignment(Qt.AlignCenter)
 
-        # --------------------------------------------------------------
-        # 1. Card Vitrine da Logomarca (Alto Contraste: Fundo Branco)
-        # --------------------------------------------------------------
         logo_card = QFrame()
         logo_card.setStyleSheet(f"""
             QFrame {{
@@ -103,9 +86,6 @@ class AboutDialog(QDialog):
         logo_card_layout.addWidget(lbl_logo)
         container_layout.addWidget(logo_card, 0, Qt.AlignCenter)
 
-        # --------------------------------------------------------------
-        # 2. Informações e Textos Oficiais
-        # --------------------------------------------------------------
         info_widget = QWidget()
         info_layout = QVBoxLayout(info_widget)
         info_layout.setContentsMargins(0, 0, 0, 0)
@@ -130,7 +110,6 @@ class AboutDialog(QDialog):
             color: {COLOR_ACCENT};
         """)
 
-        # Descrição Oficial
         lbl_desc = QLabel(
             "MangaHubRip_CJrTools é uma poderosa suíte desktop para arquivamento e download de mangás, "
             "manhwas e manhuas. Integrando a robusta base de fontes Keiyoushi, suporte nativo a grandes plataformas "
@@ -194,9 +173,6 @@ class AboutDialog(QDialog):
         scroll.setWidget(container)
         root_layout.addWidget(scroll)
 
-        # --------------------------------------------------------------
-        # 3. Botão de Fechamento Plano e Geométrico
-        # --------------------------------------------------------------
         btn_close = QPushButton("Fechar")
         btn_close.setIcon(get_icon("x", color=COLOR_TEXT_PRIMARY, size=16))
         btn_close.setMinimumWidth(120)

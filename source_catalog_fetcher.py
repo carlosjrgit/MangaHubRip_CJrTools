@@ -1,10 +1,4 @@
-#!/usr/bin/env python3
-"""
-source_catalog_fetcher.py - Mecanismo de extração e indexação do catálogo de mangás por site.
-Permite listar os mangás disponíveis em qualquer uma das mais de 2.200 fontes do index.pb,
-incluindo MangaDex (via API oficial) e sites baseados em Madara, MangaThemesia, WpComics e genéricos.
-Possui suporte a paginação e cache local em JSON para carregamento instantâneo.
-"""
+"""Extração e consulta de catálogo de obras por fonte."""
 
 import json
 import logging
@@ -33,7 +27,6 @@ else:
     CACHE_DIR = Path(__file__).resolve().parent / "catalog_cache"
 
 
-
 def get_cache_path(domain: str, page: int, lang: str = "") -> Path:
     CACHE_DIR.mkdir(exist_ok=True)
     clean_domain = re.sub(r'[^a-zA-Z0-9_\.-]', '_', domain)
@@ -48,14 +41,9 @@ def fetch_source_catalog(
     force_refresh: bool = False,
     timeout: int = 10
 ) -> List[Dict[str, Any]]:
-    """
-    Busca a lista de mangás disponíveis para a fonte informada na página indicada.
-    Retorna lista de dicionários com: title, url, cover_url, chapter_info, source_name, lang.
-    """
     domain = catalog.extract_domain(source.base_url)
     cache_file = get_cache_path(domain, page, lang=source.lang)
 
-    # Verificar se existe cache recente (< 12 horas)
     if not force_refresh and cache_file.exists():
         try:
             mtime = cache_file.stat().st_mtime
@@ -69,18 +57,14 @@ def fetch_source_catalog(
             logger.debug("Falha ao ler cache local: %s", e)
 
     results = []
-
-    # 1. Provedor Especial: MangaDex
     if "mangadex" in source.pkg.lower() or "mangadex.org" in source.base_url.lower():
         results = _fetch_mangadex_catalog(page, source, timeout)
-
-    # 2. Provedor Especial: MangaFire
     elif "mangafire" in source.pkg.lower() or "mangafire.to" in source.base_url.lower():
         results = _fetch_mangafire_catalog(source, page, timeout)
 
-    # 3. Fontes da Web / Scans Gerais
     if not results:
         results = _fetch_web_catalog(source, page, timeout)
+
 
     # Salvar em cache se houver resultados
     if results:

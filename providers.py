@@ -1,11 +1,5 @@
-#!/usr/bin/env python3
-"""
-providers.py - Camada de provedores de leitura de mangás.
-Implementa a arquitetura em cascata:
-1. Provedores Dedicados (MangaDex, MangaLivre)
-2. Motor Genérico de CMS WordPress (Madara / WP-Manga)
-3. Extrator Universal Heurístico (Playwright Stealth + Sniffer de Rede)
-"""
+"""Provedores de leitura e download de obras."""
+
 
 import html
 import json
@@ -100,9 +94,6 @@ def launch_playwright_browser(playwright_instance, headless: bool = True, args: 
         ) from err
 
 
-# ----------------------------------------------------------------------
-# Constantes & Regexes
-# ----------------------------------------------------------------------
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -113,9 +104,6 @@ CHAPTER_NUM_REGEX = re.compile(
     re.IGNORECASE
 )
 
-# ----------------------------------------------------------------------
-# Interface Base (Contrato de Provedor)
-# ----------------------------------------------------------------------
 class BaseMangaProvider(ABC):
     """Interface abstrata para qualquer provedor ou motor de mangá."""
 
@@ -186,9 +174,6 @@ class BaseMangaProvider(ABC):
         pass
 
 
-# ----------------------------------------------------------------------
-# 1. Provedor Dedicado: MangaDex
-# ----------------------------------------------------------------------
 class MangaDexProvider(BaseMangaProvider):
     name = "mangadex"
     display_name = "MangaDex"
@@ -387,9 +372,6 @@ class MangaDexProvider(BaseMangaProvider):
         return [f"{baseurl}/{datamode2}/{chaphash}/{fname}" for fname in page_filenames]
 
 
-# ----------------------------------------------------------------------
-# 2. Provedor Dedicado: MangaLivre
-# ----------------------------------------------------------------------
 class MangaLivreProvider(BaseMangaProvider):
     name = "mangalivre"
     display_name = "MangaLivre"
@@ -427,9 +409,6 @@ class MangaLivreProvider(BaseMangaProvider):
         return self._get_mangalivre().get_chapter_images(chap_url, session)
 
 
-# ----------------------------------------------------------------------
-# 3. Motor Genérico: WordPress Madara / WP-Manga
-# ----------------------------------------------------------------------
 class MadaraProvider(BaseMangaProvider):
     name = "madara"
     display_name = "Madara (WordPress)"
@@ -606,9 +585,6 @@ class MadaraProvider(BaseMangaProvider):
         return images
 
 
-# ----------------------------------------------------------------------
-# 4. Provedor de Fontes Catalogadas: Keiyoushi (index.pb)
-# ----------------------------------------------------------------------
 class KeiyoushiSourceProvider(BaseMangaProvider):
     name = "keiyoushi"
     display_name = "Keiyoushi (Catálogo)"
@@ -1330,9 +1306,6 @@ class KeiyoushiSourceProvider(BaseMangaProvider):
         }
 
 
-# ----------------------------------------------------------------------
-# 5. Fallback Universal: Playwright Stealth + Sniffer de Rede
-# ----------------------------------------------------------------------
 class UniversalPlaywrightProvider(BaseMangaProvider):
     name = "universal"
     display_name = "Universal (Web)"
@@ -1571,9 +1544,6 @@ class UniversalPlaywrightProvider(BaseMangaProvider):
                 browser.close()
 
 
-# ----------------------------------------------------------------------
-# Registro Global de Provedores (ProviderRegistry)
-# ----------------------------------------------------------------------
 class ProviderRegistry:
     """Gerenciador centralizado de provedores."""
 

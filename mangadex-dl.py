@@ -1,9 +1,5 @@
-#!/usr/bin/env python3
-"""
-mangadex-dl.py - Downloader em Linha de Comando (CLI) para MangaDex e MangaLivre
-Suporte a múltiplos links em lote (Fila de Tarefas), estimativas de tamanho/tempo,
-seleção flexível de capítulos, controle de pausa/interrupção e retomada automática.
-"""
+"""Downloader CLI para download de obras em lote com gerenciador de fila."""
+
 
 import argparse
 import logging
@@ -51,11 +47,8 @@ from manga_core import (
     safe_path_join
 )
 
-__version__ = "1.1.0"
+__version__ = "2.0.0"
 
-# ----------------------------------------------------------------------
-# Configuração de Logs
-# ----------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -66,9 +59,6 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 
-# ----------------------------------------------------------------------
-# Funções de Análise e Preparação da Fila no CLI
-# ----------------------------------------------------------------------
 def analyze_task_cli(task: QueueTask, session) -> bool:
     """Extrai metadados e capítulos da obra para exibição no terminal."""
     try:
@@ -115,9 +105,6 @@ def print_queue_summary(tasks: List[QueueTask]):
     print("=" * 80 + "\n")
 
 
-# ----------------------------------------------------------------------
-# Loop Principal de Download no CLI
-# ----------------------------------------------------------------------
 def run_cli_queue(tasks: List[QueueTask], args: argparse.Namespace):
     controller = ExecutionController()
     engine = DownloadEngine(controller=controller)
@@ -219,9 +206,6 @@ def run_cli_queue(tasks: List[QueueTask], args: argparse.Namespace):
     print("=" * 80)
 
 
-# ----------------------------------------------------------------------
-# Entrada Principal (CLI)
-# ----------------------------------------------------------------------
 def main():
     parser = argparse.ArgumentParser(
         description="MangaDex & MangaLivre Downloader - Gerenciador de Fila e Downloads em Lote"

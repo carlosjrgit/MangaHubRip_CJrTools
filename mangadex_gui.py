@@ -1,10 +1,5 @@
-#!/usr/bin/env python3
-"""
-MangaDex_Downloader_CJrTools — Interface Gráfica Oficial
-Design System: Dark, Minimal, Flat, Geometric, Technical.
-Gerenciador de Fila de Tarefas com Estimativa de Tempo/Tamanho,
-Pausar/Continuar/Parar, Retomada Automática e Seleção Avançada de Capítulos.
-"""
+"""Interface gráfica do MangaHubRip_CJrTools."""
+
 
 import os
 import sys
@@ -31,7 +26,7 @@ from PyQt5.QtGui import QColor, QIcon, QKeySequence, QPixmap
 from PyQt5.QtWidgets import (
     QAction, QApplication, QCheckBox, QComboBox, QDialog, QFileDialog, QFrame,
     QGraphicsDropShadowEffect, QGroupBox, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-    QMainWindow, QMenu, QMessageBox, QProgressBar, QPushButton,
+    QMainWindow, QMenu, QMessageBox, QProgressBar, QPushButton, QScrollArea,
     QShortcut, QSizePolicy, QSplitter, QTabWidget, QTableWidget, QTableWidgetItem, QTextEdit,
     QVBoxLayout, QWidget
 )
@@ -594,8 +589,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"{APP_NAME} v{__version__} — Gerenciador de Fila")
-        self.setMinimumSize(1080, 800)
-        self.resize(1160, 840)
+        self.setMinimumSize(960, 600)
+        self.resize(1160, 820)
 
         # Ícone da aplicação
         self.base_asset_dir = Path(sys._MEIPASS) if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS") else Path(__file__).resolve().parent
@@ -638,9 +633,6 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(12)
         main_layout.setContentsMargins(16, 12, 16, 16)
 
-        # --------------------------------------------------------------
-        # 1. Barra de Cabeçalho Oficial (HeaderBar)
-        # --------------------------------------------------------------
         header_frame = QFrame()
         header_frame.setObjectName("HeaderBar")
         header_frame.setFixedHeight(52)
@@ -680,25 +672,23 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(header_frame)
 
-        # --------------------------------------------------------------
-        # Abas Principais da Aplicação (Fila de Downloads e Explorar Fontes)
-        # --------------------------------------------------------------
         self.tabs = QTabWidget()
         self.tabs.setObjectName("MainTabs")
         self.tabs.currentChanged.connect(lambda: getattr(self, 'cover_popup', None) and self.cover_popup.hide_preview())
 
         # Aba 1: Fila de Downloads
+        self.scroll_queue = QScrollArea()
+        self.scroll_queue.setObjectName("QueueScrollArea")
+        self.scroll_queue.setWidgetResizable(True)
+        self.scroll_queue.setFrameShape(QFrame.NoFrame)
+
         self.tab_queue = QWidget()
         queue_layout = QVBoxLayout(self.tab_queue)
-        queue_layout.setContentsMargins(0, 8, 0, 0)
+        queue_layout.setContentsMargins(0, 8, 4, 0)
         queue_layout.setSpacing(10)
 
-        # --------------------------------------------------------------
-        # 2. Painel de Entrada de Links e Análise Prévia
-        # --------------------------------------------------------------
         self.top_group = QGroupBox("Adicionar Obras à Fila de Download")
-        self.top_group.setMinimumHeight(175)
-        self.top_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        self.top_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         top_layout = QVBoxLayout(self.top_group)
         top_layout.setSpacing(10)
 
@@ -783,7 +773,6 @@ class MainWindow(QMainWindow):
         # Card de Análise da Obra
         self.card_analysis = QFrame()
         self.card_analysis.setObjectName("AnalysisCard")
-        self.card_analysis.setMinimumHeight(40)
         card_layout = QVBoxLayout(self.card_analysis)
         card_layout.setContentsMargins(10, 8, 10, 8)
         card_layout.setSpacing(6)
@@ -792,10 +781,8 @@ class MainWindow(QMainWindow):
         self.lbl_card_status.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 12px; font-style: italic;")
         card_layout.addWidget(self.lbl_card_status)
 
-        # Painel com conteúdo detalhado da obra analisada
         self.panel_analyzed = QWidget()
         self.panel_analyzed.hide()
-        self.panel_analyzed.setMinimumHeight(125)
         panel_layout = QHBoxLayout(self.panel_analyzed)
         panel_layout.setContentsMargins(0, 0, 0, 0)
         panel_layout.setSpacing(12)
@@ -891,10 +878,10 @@ class MainWindow(QMainWindow):
         top_layout.addWidget(self.card_analysis)
         queue_layout.addWidget(self.top_group)
 
-        # --------------------------------------------------------------
-        # 3. Barra de Controle da Fila de Downloads
-        # --------------------------------------------------------------
-        toolbar_layout = QHBoxLayout()
+        # Barra de Controle da Fila de Downloads
+        self.toolbar_widget = QWidget()
+        toolbar_layout = QHBoxLayout(self.toolbar_widget)
+        toolbar_layout.setContentsMargins(0, 0, 0, 0)
         toolbar_layout.setSpacing(10)
 
         self.btn_start = QPushButton(" Iniciar Fila")
@@ -935,11 +922,8 @@ class MainWindow(QMainWindow):
         self.btn_open_folder.clicked.connect(self.open_output_folder)
         toolbar_layout.addWidget(self.btn_open_folder, 1)
 
-        queue_layout.addLayout(toolbar_layout)
+        queue_layout.addWidget(self.toolbar_widget)
 
-        # --------------------------------------------------------------
-        # 4. Tabela de Tarefas da Fila (Queue Table)
-        # --------------------------------------------------------------
         table_group = QGroupBox("Fila de Obras")
         table_layout = QVBoxLayout(table_group)
         table_layout.setContentsMargins(10, 14, 10, 10)
@@ -978,9 +962,6 @@ class MainWindow(QMainWindow):
         table_layout.addWidget(self.table)
         queue_layout.addWidget(table_group, 4)
 
-        # --------------------------------------------------------------
-        # 5. Dashboard de Estatísticas Técnicas em Tempo Real
-        # --------------------------------------------------------------
         dash_frame = QFrame()
         dash_frame.setObjectName("MetricFrame")
         dash_frame.setFixedHeight(44)
@@ -1020,9 +1001,6 @@ class MainWindow(QMainWindow):
         self.overall_progress.setFormat("Progresso da Fila: %p%")
         queue_layout.addWidget(self.overall_progress)
 
-        # --------------------------------------------------------------
-        # 6. Terminal Técnico de Logs
-        # --------------------------------------------------------------
         log_group = QGroupBox("Logs de Execução")
         log_layout = QVBoxLayout(log_group)
         log_layout.setContentsMargins(10, 14, 10, 10)
@@ -1034,13 +1012,11 @@ class MainWindow(QMainWindow):
         log_layout.addWidget(self.log_box)
         queue_layout.addWidget(log_group, 1)
 
-        # --------------------------------------------------------------
-        # Aba 2: Explorar Fontes (2.200+ Sites)
-        # --------------------------------------------------------------
         self.tab_explore = QWidget()
         self._init_explore_tab()
 
-        self.tabs.addTab(self.tab_queue, "📥 Fila de Downloads")
+        self.scroll_queue.setWidget(self.tab_queue)
+        self.tabs.addTab(self.scroll_queue, "📥 Fila de Downloads")
         self.tabs.addTab(self.tab_explore, "🌐 Explorar Fontes")
         main_layout.addWidget(self.tabs)
 
@@ -1583,9 +1559,11 @@ class MainWindow(QMainWindow):
         url = lines[0]
         self.btn_analyze_link.setEnabled(False)
         self.btn_analyze_link.setText("Analisando...")
+        self.panel_analyzed.hide()
         self.lbl_card_status.setVisible(True)
         self.lbl_card_status.setText("🔍 Analisando obra e capítulos... Aguarde.")
         self.lbl_card_status.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 12px; font-style: italic;")
+        self.top_group.updateGeometry()
 
         self.analysis_worker = MangaAnalysisWorker(url, lang_code="pt-br")
         self.analysis_worker.status_signal.connect(self.on_analysis_status)
@@ -1633,9 +1611,8 @@ class MainWindow(QMainWindow):
         self.combo_lang.setCurrentIndex(default_idx)
         self.combo_lang.blockSignals(False)
 
-        self.top_group.setMinimumHeight(325)
-        self.card_analysis.setMinimumHeight(145)
         self.panel_analyzed.show()
+        self.top_group.updateGeometry()
         self._update_preview_calc()
         self.log(f"[ANÁLISE] Obra identificada: '{data['title']}' ({chaps_count} capítulos disponíveis).")
 
@@ -1643,8 +1620,7 @@ class MainWindow(QMainWindow):
         self.btn_analyze_link.setEnabled(True)
         self.btn_analyze_link.setText("🔍 Analisar Link")
         self.panel_analyzed.hide()
-        self.card_analysis.setMinimumHeight(40)
-        self.top_group.setMinimumHeight(175)
+        self.top_group.updateGeometry()
         self.lbl_card_status.setVisible(True)
         self.lbl_card_status.setText(f"❌ Falha na análise: {err_msg}")
         self.lbl_card_status.setStyleSheet(f"color: {COLOR_ERROR}; font-size: 12px; font-weight: 500;")

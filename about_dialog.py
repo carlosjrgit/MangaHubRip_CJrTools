@@ -101,7 +101,7 @@ class AboutDialog(QDialog):
             letter-spacing: 0.5px;
         """)
 
-        lbl_version = QLabel("Version 2.0.0")
+        lbl_version = QLabel("Version 2.1.0")
         lbl_version.setAlignment(Qt.AlignCenter)
         lbl_version.setStyleSheet(f"""
             font-family: {FONT_MONOSPACE};

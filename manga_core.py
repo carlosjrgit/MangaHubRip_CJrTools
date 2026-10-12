@@ -517,7 +517,7 @@ def calculate_task_estimates(
     # Estimativa de tamanho por página / capítulo
     if task.provider == "mangalivre":
         avg_mb_per_chap = AVG_PAGE_SIZE_MANGALIVRE_MB * AVG_PAGES_PER_CHAPTER
-    elif task.provider in ("madara", "universal"):
+    elif task.provider in ("madara", "universal", "hitomi", "nhentai"):
         avg_mb_per_chap = AVG_PAGE_SIZE_GENERIC_MB * AVG_PAGES_PER_CHAPTER
     else:
         if task.datasaver:

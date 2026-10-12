@@ -75,7 +75,7 @@ from chapter_download_dialog import ChapterDownloadDialog
 
 APP_NAME = "MangaHubRip_CJrTools"
 ORGANIZATION_NAME = "CJRDOOM"
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 
 # ----------------------------------------------------------------------
@@ -110,7 +110,8 @@ class MangaAnalysisWorker(QThread):
             if cover_url:
                 try:
                     self.status_signal.emit("Carregando imagem de capa...")
-                    c_res = session.get(cover_url, timeout=10)
+                    req_headers = provider.get_request_headers(cover_url)
+                    c_res = session.get(cover_url, headers=req_headers, timeout=10)
                     if c_res.status_code == 200:
                         cover_bytes = c_res.content
                 except Exception:
@@ -204,7 +205,12 @@ class CoverThumbnailWorker(QThread):
             if not cover_url:
                 continue
             try:
-                r = session.get(cover_url, timeout=6)
+                item_headers = {}
+                if "gold-usergeneratedcontent.net" in cover_url or "hitomi.la" in cover_url:
+                    item_headers["Referer"] = "https://hitomi.la/"
+                elif "nhentai" in cover_url or "supercdn.site" in cover_url:
+                    item_headers["Referer"] = "https://nhentai.to/"
+                r = session.get(cover_url, headers=item_headers, timeout=6)
                 if r.status_code == 200 and r.content:
                     self.cover_loaded.emit(row_idx, r.content)
             except Exception:
@@ -863,6 +869,13 @@ class MainWindow(QMainWindow):
         self.lbl_preview_calc.setStyleSheet(f"color: {COLOR_ACCENT}; font-weight: 600; font-size: 12px;")
         row_action.addWidget(self.lbl_preview_calc)
         row_action.addStretch()
+
+        self.btn_cancel_analyzed = QPushButton("✕ Cancelar")
+        self.btn_cancel_analyzed.setObjectName("SecondaryBtn")
+        self.btn_cancel_analyzed.setMinimumHeight(32)
+        self.btn_cancel_analyzed.setToolTip("Cancela a prévia e limpa o campo para novo link.")
+        self.btn_cancel_analyzed.clicked.connect(self.clear_analysis)
+        row_action.addWidget(self.btn_cancel_analyzed)
 
         self.btn_add_analyzed = QPushButton(" + Adicionar à Fila")
         self.btn_add_analyzed.setObjectName("PrimaryBtn")
@@ -1561,7 +1574,10 @@ class MainWindow(QMainWindow):
         self.btn_analyze_link.setText("Analisando...")
         self.panel_analyzed.hide()
         self.lbl_card_status.setVisible(True)
-        self.lbl_card_status.setText("🔍 Analisando obra e capítulos... Aguarde.")
+        if len(lines) > 1:
+            self.lbl_card_status.setText(f"🔍 Analisando obra (1 de {len(lines)} restantes)... Aguarde.")
+        else:
+            self.lbl_card_status.setText("🔍 Analisando obra e capítulos... Aguarde.")
         self.lbl_card_status.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 12px; font-style: italic;")
         self.top_group.updateGeometry()
 
@@ -1768,9 +1784,69 @@ class MainWindow(QMainWindow):
 
         lang_name = get_language_display_name(lang_code)
         self.log(f"[FILA] '{new_task.title}' adicionada à fila: {len(selected)} cap(s) em {lang_name} (~{format_size(est_mb)}).")
+        
+        # Atualizar a lista de URLs removendo a URL que acabou de ser processada
+        raw_text = self.txt_urls.toPlainText().strip()
+        lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+
+        if lines and lines[0] == url:
+            remaining_lines = lines[1:]
+        elif url in lines:
+            lines.remove(url)
+            remaining_lines = lines
+        else:
+            remaining_lines = lines
+
+        self.txt_urls.setPlainText("\n".join(remaining_lines))
+        self.panel_analyzed.hide()
+        self.current_analysis = None
+        self.top_group.updateGeometry()
+
+        if remaining_lines:
+            next_url = remaining_lines[0]
+            self.lbl_card_status.setVisible(True)
+            self.lbl_card_status.setText(f"✓ '{new_task.title}' adicionada! Analisando próxima obra ({len(remaining_lines)} restante(s))...")
+            self.lbl_card_status.setStyleSheet(f"color: {COLOR_ACCENT}; font-size: 12px; font-weight: 600;")
+            self.log(f"[FILA] '{new_task.title}' adicionada. Analisando automaticamente próxima URL ({len(remaining_lines)} restante(s)): {next_url}")
+            self.start_analysis()
+        else:
+            self.lbl_card_status.setVisible(True)
+            self.lbl_card_status.setText(f"✓ '{new_task.title}' adicionada com sucesso! Todas as obras da lista foram adicionadas à fila.")
+            self.lbl_card_status.setStyleSheet(f"color: {COLOR_SUCCESS}; font-size: 12px; font-weight: 600;")
+            self.txt_urls.setFocus()
+
+    def clear_analysis(self):
+        """Cancela a visualização da análise e permite pular para a próxima se houver múltiplas URLs."""
+        raw_text = self.txt_urls.toPlainText().strip()
+        lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+
+        # Se houver mais URLs na lista e uma análise ativa, remove a atual e pula para a próxima
+        if hasattr(self, "current_analysis") and self.current_analysis and len(lines) > 1:
+            current_url = self.current_analysis.get("url", "")
+            if lines and lines[0] == current_url:
+                remaining_lines = lines[1:]
+            elif current_url in lines:
+                lines.remove(current_url)
+                remaining_lines = lines
+            else:
+                remaining_lines = lines
+
+            self.txt_urls.setPlainText("\n".join(remaining_lines))
+            self.panel_analyzed.hide()
+            self.current_analysis = None
+            self.top_group.updateGeometry()
+            self.log(f"[ANÁLISE] Análise pulada pelo usuário. Analisando próxima obra: {remaining_lines[0] if remaining_lines else ''}")
+            self.start_analysis()
+            return
+
+        self.txt_urls.clear()
+        self.panel_analyzed.hide()
+        self.current_analysis = None
         self.lbl_card_status.setVisible(True)
-        self.lbl_card_status.setText(f"✓ '{new_task.title}' adicionada com sucesso à fila!")
-        self.lbl_card_status.setStyleSheet(f"color: {COLOR_SUCCESS}; font-size: 12px; font-weight: 600;")
+        self.lbl_card_status.setText("💡 Cole a URL de um mangá acima e clique em '🔍 Analisar Link' para visualizar capítulos e escolher o idioma.")
+        self.lbl_card_status.setStyleSheet(f"color: {COLOR_TEXT_SECONDARY}; font-size: 12px; font-style: italic;")
+        self.top_group.updateGeometry()
+        self.txt_urls.setFocus()
 
     def add_urls_to_queue(self):
         raw_text = self.txt_urls.toPlainText().strip()

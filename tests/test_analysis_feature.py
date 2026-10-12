@@ -174,6 +174,56 @@ class TestAnalysisFeature(unittest.TestCase):
         progress_bars = [w for w in win.table.findChildren(QProgressBar) if w.parent() is not None]
         self.assertEqual(len(progress_bars), 2)
 
+    def test_add_analyzed_to_queue_chains_next_url(self):
+        """Valida que adicionar uma obra analisada remove seu link da lista e dispara a próxima URL."""
+        win = mangadex_gui.MainWindow()
+        win.tasks.clear()
+        win.start_analysis = MagicMock()
+
+        url1 = "https://mangadex.org/title/link-1"
+        url2 = "https://mangadex.org/title/link-2"
+        win.txt_urls.setPlainText(f"{url1}\n{url2}")
+
+        win.current_analysis = {
+            "url": url1,
+            "provider": "mangadex",
+            "provider_display": "MangaDex",
+            "title": "Obra 1",
+            "cover_url": "",
+            "cover_bytes": None,
+            "available_langs": ["pt-br"],
+            "current_lang": "pt-br",
+            "chapters": [{"id": "c1", "chapter": "1", "pages_count": 20}]
+        }
+        win.combo_lang.clear()
+        win.combo_lang.addItem("Português (Brasil)", "pt-br")
+        win.combo_lang.setCurrentIndex(0)
+        win.combo_mode.setCurrentIndex(0)
+
+        win.add_analyzed_to_queue()
+
+        self.assertEqual(len(win.tasks), 1)
+        self.assertEqual(win.tasks[0].title, "Obra 1")
+        # Restou apenas url2
+        self.assertEqual(win.txt_urls.toPlainText().strip(), url2)
+        # Disparou a análise da próxima URL
+        win.start_analysis.assert_called_once()
+
+    def test_clear_analysis_skips_to_next_url(self):
+        """Valida que cancelar/pular uma obra remove seu link e dispara a análise do próximo."""
+        win = mangadex_gui.MainWindow()
+        win.start_analysis = MagicMock()
+
+        url1 = "https://mangadex.org/title/link-1"
+        url2 = "https://mangadex.org/title/link-2"
+        win.txt_urls.setPlainText(f"{url1}\n{url2}")
+        win.current_analysis = {"url": url1, "title": "Obra 1"}
+
+        win.clear_analysis()
+
+        self.assertEqual(win.txt_urls.toPlainText().strip(), url2)
+        win.start_analysis.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

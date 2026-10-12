@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>v2.0.0</strong> • <em>Designed and developed by <strong>CJRDOOM</strong></em> • © 2026 Carlos Junior
+  <strong>v2.1.0</strong> • <em>Designed and developed by <strong>CJRDOOM</strong></em> • © 2026 Carlos Junior
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
   <a href="#-principais-recursos"><img src="https://img.shields.io/badge/Fontes-Keiyoushi%202200%2B-22C55E.svg?style=flat-square" alt="Fontes Keiyoushi" /></a>
   <a href="#-segurança-e-hardening-de-código"><img src="https://img.shields.io/badge/Security-SSDLC%20Audited-38BDF8.svg?style=flat-square" alt="Security Audited" /></a>
   <a href="#-instalação-e-execução"><img src="https://img.shields.io/badge/Python-3.10%2B-blue.svg?style=flat-square" alt="Python 3.10+" /></a>
-  <a href="https://github.com/carlosjrgit/MangaHubRip_CJrTools/releases/tag/v2.0.0"><img src="https://img.shields.io/badge/Release-v2.0.0-orange.svg?style=flat-square" alt="GitHub Release" /></a>
+  <a href="https://github.com/carlosjrgit/MangaHubRip_CJrTools/releases/latest"><img src="https://img.shields.io/badge/Release-v2.1.0-orange.svg?style=flat-square" alt="GitHub Release" /></a>
 </p>
 
 > **MangaHubRip_CJrTools é uma poderosa suíte desktop para arquivamento e download de mangás, manhwas e manhuas. Integrando a robusta base de fontes Keiyoushi, suporte nativo a grandes plataformas (MangaDex, MangaFire, MangaLivre, sites WordPress/Madara) e um motor universal com bypass stealth anti-bot, o programa permite explorar catálogos por idioma, enfileirar capítulos com download paralelo de alta velocidade e empacotar automaticamente suas leituras em arquivos digitais .CBZ organizados.**
@@ -68,15 +68,21 @@ O software foi construído seguindo rigorosamente a direção de design industri
 
 ---
 
-## 🚀 Principais Recursos da Versão 2.0.0
+## 🚀 Principais Recursos da Versão 2.1.0
+ 
+### 📄 1. Importação TXT e Análise Sequencial Contínua
+- Importação direta de listas com dezenas de links (`.txt`).
+- Fluxo dinâmico de análise em lote interativo: ao analisar o primeiro link e clicar em **Adicionar à Fila**, o programa adiciona a obra e automaticamente dispara a análise do link seguinte do arquivo até esgotar a lista.
+- Opção ágil de pular obra atual (`✕ Cancelar`) diretamente para o próximo link da lista.
+- Exibição de contadores e telemetria dos links restantes.
 
-### 🌐 1. Explorador de Fontes Keiyoushi (2.200+ Fontes)
+### 🌐 2. Explorador de Fontes Keiyoushi (2.200+ Fontes)
 - Integração nativa com o índice consolidado Keiyoushi (`index.pb`).
 - Filtro imediato por idioma (Português `pt-br`, Inglês `en`, Espanhol `es`, Japonês `ja`, etc.).
 - Paginação dinâmica e busca rápida de fontes por nome ou domínio.
 - Botão direto **⬇️ Baixar** que abre um diálogo simplificado para escolher os capítulos e enviá-los à fila em 1 clique.
 
-### ⚡ 2. Suporte Avançado a Plataformas & SPAs Modernas
+### ⚡ 3. Suporte Avançado a Plataformas & SPAs Modernas
 - **MangaFire (`mangafire.to`):**
   - Navegação em catálogo paginado via Playwright headless stealth.
   - Seleção síncrona do idioma desejado (`LANG`) com suporte oficial a PT-BR.
@@ -84,10 +90,11 @@ O software foi construído seguindo rigorosamente a direção de design industri
   - Envio do cabeçalho `Referer` específico para a CDN de imagens, contornando bloqueios de acesso (HTTP 403).
 - **MangaDex (API v5):** Consulta assíncrona, paginação rápida, deduplicação de grupos e modo DataSaver.
 - **MangaLivre:** Captura completa com contorno de proteção.
+- **Hitomi & NHentai:** Provedores dedicados integrados.
 - **Madara / WP-Manga (WordPress):** Compatível com dezenas de sites baseados em CMS de mangás.
 - **Motor Universal Heurístico:** Extração por Playwright e sniffer de requisições de imagem para qualquer site web.
 
-### 📥 3. Gerenciador de Fila & Telemetria em Tempo Real
+### 📥 4. Gerenciador de Fila & Telemetria em Tempo Real
 - Execução sequencial com controle de threads paralelas de download (padrão: 4 workers).
 - Métricas ao vivo: velocidade média de download em MB/s, tempo restante estimado (ETA) e bytes baixados.
 - Controle de ciclo de vida: Pausar, Retomar e Parar fila a qualquer momento.
@@ -98,7 +105,7 @@ O software foi construído seguindo rigorosamente a direção de design industri
   - **Blocos:** Baixa de N em N capítulos.
   - **Personalizado:** Expressões combinadas (ex: `1, 3, 5-10`).
 
-### 📚 4. Empacotamento Automático em `.CBZ`
+### 📚 5. Empacotamento Automático em `.CBZ`
 - Renomeação numérica normalizada e sequencial de páginas (`001.jpg`, `002.jpg`...).
 - Compactação direta no formato padrão para leitura digital (`.cbz`).
 - Exclusão e limpeza automática das pastas de imagens temporárias após a criação do arquivo final.
@@ -120,8 +127,8 @@ O projeto cumpre com as diretrizes do nosso ciclo de desenvolvimento seguro:
 
 ### Opção A — Executável Pré-Compilado (Windows x64)
 Para usuários que desejam executar o programa diretamente, sem instalar Python ou dependências:
-1. Acesse a página oficial de [GitHub Releases](https://github.com/carlosjrgit/MangaHubRip_CJrTools/releases/tag/v2.0.0).
-2. Baixe o executável `MangaHubRip_CJrTools-v2.0.0-Windows-x64.exe`.
+1. Acesse a página oficial de [GitHub Releases](https://github.com/carlosjrgit/MangaHubRip_CJrTools/releases/latest).
+2. Baixe o executável `MangaHubRip_CJrTools-v2.1.0-Windows-x64.exe` ou `MangaHubRip_CJrTools.exe`.
 3. *(Opcional)* Verifique a integridade do arquivo através do arquivo `SHA256SUMS.txt`.
 4. Execute o programa com dois cliques.
 

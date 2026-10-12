@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import sys
+import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin, urlparse
@@ -407,6 +408,386 @@ class MangaLivreProvider(BaseMangaProvider):
     ) -> List[str]:
         chap_url = chapter.get("url") or chapter.get("id")
         return self._get_mangalivre().get_chapter_images(chap_url, session)
+
+
+class HitomiProvider(BaseMangaProvider):
+    """Provedor para download de galerias, mangás e doujinshis do Hitomi.la."""
+
+    name: str = "hitomi"
+    display_name: str = "Hitomi.la"
+
+    def __init__(self):
+        self._gg_cache: Optional[Dict[str, Any]] = None
+        self._gg_timestamp: float = 0.0
+        self._gallery_cache: Dict[str, Dict[str, Any]] = {}
+        self.default_domain: str = "ltn.gold-usergeneratedcontent.net"
+        self.domain2: str = "gold-usergeneratedcontent.net"
+
+    def can_handle(self, url: str, session: Optional[requests.Session] = None) -> bool:
+        if not url:
+            return False
+        clean = url.lower()
+        return "hitomi.la" in clean or "gold-usergeneratedcontent.net" in clean
+
+    def _extract_gallery_id(self, url: str) -> Optional[str]:
+        """Extrai o ID numérico da galeria da URL, tratando codificação, âncoras e rotas."""
+        clean = str(url).split("#")[0].split("?")[0].strip()
+        m = re.search(r'(?:-|/reader/|/galleries/|/)(\d+)\.html', clean)
+        if m:
+            return m.group(1)
+        m = re.search(r'(\d+)\.html', clean)
+        if m:
+            return m.group(1)
+        digits = re.findall(r'\d+', clean)
+        if digits:
+            return digits[-1]
+        return None
+
+    def _resolve_ltn_domain(self, gallery_id: str, session: requests.Session) -> str:
+        """Resolve o domínio CDN ativo (ex: ltn.gold-usergeneratedcontent.net)."""
+        try:
+            r = session.head(f"https://{self.default_domain}/gg.js", headers={"User-Agent": USER_AGENT}, timeout=5)
+            if r.status_code == 200:
+                return self.default_domain
+        except Exception:
+            pass
+
+        try:
+            reader_url = f"https://hitomi.la/reader/{gallery_id}.html"
+            r = session.get(reader_url, headers={"User-Agent": USER_AGENT}, timeout=8)
+            if r.status_code == 200:
+                m = re.search(r'//([^/]+)/gg\.js', r.text)
+                if m:
+                    discovered = m.group(1)
+                    self.default_domain = discovered
+                    if "gold-usergeneratedcontent.net" in discovered:
+                        self.domain2 = "gold-usergeneratedcontent.net"
+                    elif "hitomi.la" in discovered:
+                        self.domain2 = "hitomi.la"
+                    return discovered
+        except Exception as e:
+            logger.debug("Falha ao resolver domínio dinâmico do Hitomi: %s", e)
+
+        return self.default_domain
+
+    def _get_gg_params(self, session: requests.Session, gallery_id: str = "") -> Dict[str, Any]:
+        """Obtém e compila as regras do script gg.js do Hitomi com cache."""
+        now = time.time()
+        if self._gg_cache and (now - self._gg_timestamp < 900):
+            return self._gg_cache
+
+        domain = self._resolve_ltn_domain(gallery_id, session) if gallery_id else self.default_domain
+        headers = {"User-Agent": USER_AGENT, "Referer": "https://hitomi.la/"}
+        url = f"https://{domain}/gg.js"
+        r = session.get(url, headers=headers, timeout=10)
+        r.raise_for_status()
+        text = r.text
+
+        b_match = re.search(r"b:\s*['\"]([^'\"]+)['\"]", text)
+        gg_b = b_match.group(1) if b_match else "1790910001/"
+
+        def_match = re.search(r"var\s+o\s*=\s*(\d+)", text)
+        default_o = int(def_match.group(1)) if def_match else 1
+
+        case_match = re.search(r"o\s*=\s*(\d+);\s*break", text)
+        case_o = int(case_match.group(1)) if case_match else 0
+
+        cases = set(int(c) for c in re.findall(r"case\s+(\d+):", text))
+
+        self._gg_cache = {
+            "b": gg_b,
+            "default_o": default_o,
+            "case_o": case_o,
+            "cases": cases,
+            "domain2": self.domain2
+        }
+        self._gg_timestamp = now
+        return self._gg_cache
+
+    def _get_gallery_info(self, gallery_id: str, session: requests.Session) -> Dict[str, Any]:
+        """Recupera o arquivo JavaScript/JSON de metadados da galeria."""
+        if gallery_id in self._gallery_cache:
+            return self._gallery_cache[gallery_id]
+
+        domain = self._resolve_ltn_domain(gallery_id, session)
+        headers = {"User-Agent": USER_AGENT, "Referer": "https://hitomi.la/"}
+        url = f"https://{domain}/galleries/{gallery_id}.js"
+        r = session.get(url, headers=headers, timeout=10)
+        r.raise_for_status()
+
+        clean_text = re.sub(r'^\s*var\s+galleryinfo\s*=\s*', '', r.text).rstrip(';\n ')
+        data = json.loads(clean_text)
+        self._gallery_cache[gallery_id] = data
+        return data
+
+    def _build_image_url(self, file_info: Dict[str, Any], gg_params: Dict[str, Any]) -> str:
+        """Calcula a URL exata do CDN para uma imagem da galeria a partir do hash."""
+        file_hash = file_info["hash"]
+        cases = gg_params["cases"]
+        case_o = gg_params["case_o"]
+        default_o = gg_params["default_o"]
+        gg_b = gg_params["b"]
+        domain2 = gg_params.get("domain2", self.domain2)
+
+        # Regra de partição gg.s(hash)
+        m_s = re.search(r'(..)(.)$', file_hash)
+        s_part = str(int(m_s.group(2) + m_s.group(1), 16)) if m_s else ""
+
+        path = f"{gg_b}{s_part}/{file_hash}"
+        temp_url = f"https://a.{domain2}/{path}.webp"
+
+        m_sub = re.search(r'\/[0-9a-f]{61}([0-9a-f]{2})([0-9a-f])', temp_url)
+        if m_sub:
+            g = int(m_sub.group(2) + m_sub.group(1), 16)
+            val = case_o if g in cases else default_o
+        else:
+            val = default_o
+
+        if file_info.get("haswebp"):
+            subdomain = f"w{1 + val}"
+            return f"https://{subdomain}.{domain2}/{path}.webp"
+        elif file_info.get("hasavif"):
+            subdomain = f"a{1 + val}"
+            return f"https://{subdomain}.{domain2}/{path}.avif"
+        else:
+            ext = file_info.get("name", "page.jpg").split(".")[-1]
+            subdomain = f"{chr(97 + val)}a"
+            return f"https://{subdomain}.{domain2}/images/{path}.{ext}"
+
+    def get_manga_info(
+        self,
+        url: str,
+        session: requests.Session,
+        lang_code: str = "pt-br"
+    ) -> Dict[str, Any]:
+        gallery_id = self._extract_gallery_id(url)
+        if not gallery_id:
+            raise ValueError(f"Não foi possível extrair o ID da galeria do link: '{url}'")
+
+        galleryinfo = self._get_gallery_info(gallery_id, session)
+        gg_params = self._get_gg_params(session, gallery_id=gallery_id)
+
+        # Resolução de Título (Prioriza japonês/original se presente, ou romanizado)
+        jp_title = galleryinfo.get("japanese_title")
+        en_title = galleryinfo.get("title")
+        title = jp_title or en_title or f"Hitomi Gallery {gallery_id}"
+
+        # Resolução de Scan / Grupo / Artista
+        groups = galleryinfo.get("groups") or []
+        artists = galleryinfo.get("artists") or []
+        group_names = [g.get("group") for g in groups if g.get("group")]
+        artist_names = [a.get("artist") for a in artists if a.get("artist")]
+        group_display = ", ".join(group_names) if group_names else (", ".join(artist_names) if artist_names else "Hitomi")
+
+        # Idioma informado na galeria
+        raw_lang = (galleryinfo.get("language") or "").strip().lower()
+        lang_map = {
+            "japanese": "ja",
+            "english": "en",
+            "korean": "ko",
+            "chinese": "zh",
+            "portuguese": "pt-br",
+            "spanish": "es",
+            "french": "fr",
+            "german": "de",
+            "italian": "it",
+            "russian": "ru"
+        }
+        detected_lang = lang_map.get(raw_lang, raw_lang or "ja")
+
+        # Capa (primeira página da obra)
+        cover_url = ""
+        files = galleryinfo.get("files") or []
+        if files:
+            cover_url = self._build_image_url(files[0], gg_params)
+
+        chapter_item = {
+            "id": gallery_id,
+            "chapter": "1",
+            "title": title,
+            "url": url,
+            "group": group_display
+        }
+
+        return {
+            "title": title,
+            "cover_url": cover_url,
+            "available_langs": [detected_lang],
+            "chapters": [chapter_item],
+            "provider_display": self.display_name
+        }
+
+    def get_chapter_pages(
+        self,
+        chapter: Dict[str, Any],
+        session: requests.Session,
+        datasaver: bool = False
+    ) -> List[str]:
+        gallery_id = self._extract_gallery_id(chapter.get("url", "")) or str(chapter.get("id", ""))
+        if not gallery_id:
+            raise ValueError(f"ID da galeria inválido no capítulo: {chapter}")
+
+        galleryinfo = self._get_gallery_info(gallery_id, session)
+        gg_params = self._get_gg_params(session, gallery_id=gallery_id)
+
+        files = galleryinfo.get("files") or []
+        pages = [self._build_image_url(f, gg_params) for f in files]
+        return pages
+
+    def get_request_headers(self, page_url: str, chapter_url: Optional[str] = None) -> Dict[str, str]:
+        return {
+            "User-Agent": USER_AGENT,
+            "Referer": "https://hitomi.la/"
+        }
+
+
+class NHentaiProvider(BaseMangaProvider):
+    """Provedor para download rápido e nativo de obras do NHentai (nhentai.to, nhentai.net, nhentai.xxx)."""
+
+    name: str = "nhentai"
+    display_name: str = "NHentai"
+
+    def can_handle(self, url: str, session: Optional[requests.Session] = None) -> bool:
+        if not url:
+            return False
+        clean = url.lower()
+        return "nhentai.to" in clean or "nhentai.net" in clean or "nhentai.xxx" in clean or "nhentai" in clean
+
+    def _extract_gallery_id(self, url: str) -> Optional[str]:
+        clean = str(url).split("#")[0].split("?")[0].strip()
+        m = re.search(r'/g/(\d+)', clean)
+        if m:
+            return m.group(1)
+        m = re.search(r'(\d+)', clean)
+        if m:
+            return m.group(1)
+        return None
+
+    def _get_base_url(self, url: str) -> str:
+        parsed = urlparse(url)
+        if parsed.netloc and "nhentai" in parsed.netloc.lower():
+            return f"{parsed.scheme or 'https'}://{parsed.netloc}"
+        return "https://nhentai.to"
+
+    def get_manga_info(
+        self,
+        url: str,
+        session: requests.Session,
+        lang_code: str = "pt-br"
+    ) -> Dict[str, Any]:
+        gallery_id = self._extract_gallery_id(url)
+        if not gallery_id:
+            raise ValueError(f"Não foi possível extrair o ID da galeria do link: '{url}'")
+
+        base_url = self._get_base_url(url)
+        gallery_url = f"{base_url}/g/{gallery_id}/"
+        headers = {"User-Agent": USER_AGENT, "Referer": base_url}
+        r = session.get(gallery_url, headers=headers, timeout=12)
+        r.raise_for_status()
+
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        # Título da obra
+        h1 = soup.select_one("#info > h1, #info > h2, h1.title, .title")
+        title = h1.get_text(strip=True) if h1 else ""
+        if not title and soup.title:
+            title = soup.title.get_text(strip=True).split(" » ")[0].split(" - ")[0].split(" | ")[0].strip()
+        title = title or f"NHentai Gallery {gallery_id}"
+
+        # Capa
+        cover_tag = soup.select_one("#cover img, .cover img")
+        cover_url = ""
+        if cover_tag:
+            cover_url = cover_tag.get("data-src") or cover_tag.get("src") or ""
+
+        # Idioma
+        lang_tags = soup.select('.tag-container a[href*="/language/"]')
+        raw_langs = []
+        for t in lang_tags:
+            name_el = t.select_one(".name")
+            text = name_el.get_text(strip=True).lower() if name_el else t.get_text(strip=True).lower()
+            text = re.sub(r'\d+$', '', text).strip()
+            if text and "translated" not in text:
+                raw_langs.append(text)
+
+        lang_map = {
+            "english": "en",
+            "japanese": "ja",
+            "chinese": "zh",
+            "spanish": "es",
+            "portuguese": "pt-br",
+            "french": "fr",
+            "german": "de",
+            "italian": "it",
+            "russian": "ru",
+            "korean": "ko"
+        }
+        detected_lang = lang_map.get(raw_langs[0], raw_langs[0]) if raw_langs else "en"
+
+        # Artista / Grupo
+        group_tags = soup.select('.tag-container a[href*="/group/"]')
+        artist_tags = soup.select('.tag-container a[href*="/artist/"]')
+        groups = [re.sub(r'\d+$', '', (g.select_one(".name") or g).get_text(strip=True)).strip() for g in group_tags]
+        artists = [re.sub(r'\d+$', '', (a.select_one(".name") or a).get_text(strip=True)).strip() for a in artist_tags]
+        group_display = ", ".join(groups) if groups else (", ".join(artists) if artists else "NHentai")
+
+        chapter_item = {
+            "id": gallery_id,
+            "chapter": "1",
+            "title": title,
+            "url": gallery_url,
+            "group": group_display
+        }
+
+        return {
+            "title": title,
+            "cover_url": cover_url,
+            "available_langs": [detected_lang],
+            "chapters": [chapter_item],
+            "provider_display": self.display_name
+        }
+
+    def get_chapter_pages(
+        self,
+        chapter: Dict[str, Any],
+        session: requests.Session,
+        datasaver: bool = False
+    ) -> List[str]:
+        gallery_url = chapter.get("url") or ""
+        if not gallery_url.startswith("http"):
+            gallery_id = self._extract_gallery_id(chapter.get("id", ""))
+            gallery_url = f"https://nhentai.to/g/{gallery_id}/"
+
+        base_url = self._get_base_url(gallery_url)
+        headers = {"User-Agent": USER_AGENT, "Referer": base_url}
+        r = session.get(gallery_url, headers=headers, timeout=12)
+        r.raise_for_status()
+
+        soup = BeautifulSoup(r.text, "html.parser")
+        pages: List[str] = []
+        seen = set()
+
+        for img in soup.select(".gallerythumb img, .thumb-container img, #thumbnail-container img"):
+            src = img.get("data-src") or img.get("src")
+            if not src or "data:image" in src:
+                continue
+            src = src.strip()
+            # Converte sufixo de thumbnail em imagem full (ex: 1t.webp -> 1.webp, 1t.jpg -> 1.jpg)
+            full_url = re.sub(r't\.(webp|jpg|png|gif)$', r'.\1', src)
+            if full_url not in seen:
+                seen.add(full_url)
+                pages.append(full_url)
+
+        return pages
+
+    def get_request_headers(self, page_url: str, chapter_url: Optional[str] = None) -> Dict[str, str]:
+        ref = "https://nhentai.to/"
+        if chapter_url:
+            ref = self._get_base_url(chapter_url)
+        return {
+            "User-Agent": USER_AGENT,
+            "Referer": ref
+        }
 
 
 class MadaraProvider(BaseMangaProvider):
@@ -1227,48 +1608,55 @@ class KeiyoushiSourceProvider(BaseMangaProvider):
                     logger.info("Capítulo extraído via API interceptada: %d páginas", len(api_pages))
                     return api_pages
 
-                # Scroll para lazy loading
-                page.evaluate("""async () => {
-                    await new Promise((resolve) => {
-                        let totalHeight = 0;
-                        let distance = 600;
-                        let timer = setInterval(() => {
-                            let scrollHeight = document.body.scrollHeight;
-                            window.scrollBy(0, distance);
-                            totalHeight += distance;
-                            if (totalHeight >= scrollHeight || totalHeight > 50000) {
-                                clearInterval(timer);
-                                resolve();
-                            }
-                        }, 120);
-                    });
-                }""")
+                # Scroll para lazy loading (com captura de erro de navegação)
+                try:
+                    page.evaluate("""async () => {
+                        await new Promise((resolve) => {
+                            let totalHeight = 0;
+                            let distance = 600;
+                            let timer = setInterval(() => {
+                                let scrollHeight = document.body.scrollHeight;
+                                window.scrollBy(0, distance);
+                                totalHeight += distance;
+                                if (totalHeight >= scrollHeight || totalHeight > 50000) {
+                                    clearInterval(timer);
+                                    resolve();
+                                }
+                            }, 120);
+                        });
+                    }""")
+                except Exception as e:
+                    logger.debug("Scroll evaluate ignorado: %s", e)
 
-                dom_imgs = page.evaluate("""() => {
-                    const selectors = [
-                        ".reader__page img", ".reader-swiper img", ".reader-swiper__img",
-                        "img.reader-img", ".swiper-slide img", "#readerarea img",
-                        ".reading-content img", ".page-chapter img", ".entry-content img",
-                        ".reader-body img", ".reader__strip img", "img"
-                    ];
-                    let found = [];
-                    for (const s of selectors) {
-                        const list = Array.from(document.querySelectorAll(s));
-                        if (list.length > 2) {
-                            found = list;
-                            break;
+                dom_imgs = []
+                try:
+                    dom_imgs = page.evaluate("""() => {
+                        const selectors = [
+                            ".reader__page img", ".reader-swiper img", ".reader-swiper__img",
+                            "img.reader-img", ".swiper-slide img", "#readerarea img",
+                            ".reading-content img", ".page-chapter img", ".entry-content img",
+                            ".reader-body img", ".reader__strip img", "img"
+                        ];
+                        let found = [];
+                        for (const s of selectors) {
+                            const list = Array.from(document.querySelectorAll(s));
+                            if (list.length > 2) {
+                                found = list;
+                                break;
+                            }
                         }
-                    }
-                    if (found.length === 0) found = Array.from(document.querySelectorAll("img"));
-                    const results = [];
-                    for (const img of found) {
-                        const src = img.dataset.src || img.dataset.lazySrc || img.dataset.original || img.src;
-                        if (src && src.startsWith('http')) {
-                            results.push(src);
+                        if (found.length === 0) found = Array.from(document.querySelectorAll("img"));
+                        const results = [];
+                        for (const img of found) {
+                            const src = img.dataset.src || img.dataset.lazySrc || img.dataset.original || img.src;
+                            if (src && src.startsWith('http')) {
+                                results.push(src);
+                            }
                         }
-                    }
-                    return results;
-                }""")
+                        return results;
+                    }""") or []
+                except Exception as e:
+                    logger.debug("dom_imgs evaluate ignorado: %s", e)
 
                 for src in dom_imgs:
                     if src not in image_urls and not any(junk in src.lower() for junk in [
@@ -1550,6 +1938,8 @@ class ProviderRegistry:
     _providers: List[BaseMangaProvider] = [
         MangaDexProvider(),
         MangaLivreProvider(),
+        HitomiProvider(),
+        NHentaiProvider(),
         KeiyoushiSourceProvider(),
         MadaraProvider(),
         UniversalPlaywrightProvider()  # Fallback universal sempre no final

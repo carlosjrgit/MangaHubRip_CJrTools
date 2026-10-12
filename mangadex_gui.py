@@ -1784,7 +1784,7 @@ class MainWindow(QMainWindow):
 
         lang_name = get_language_display_name(lang_code)
         self.log(f"[FILA] '{new_task.title}' adicionada à fila: {len(selected)} cap(s) em {lang_name} (~{format_size(est_mb)}).")
-        
+
         # Atualizar a lista de URLs removendo a URL que acabou de ser processada
         raw_text = self.txt_urls.toPlainText().strip()
         lines = [line.strip() for line in raw_text.splitlines() if line.strip()]

@@ -1,7 +1,7 @@
 """Testes unitários para o provedor NHentai."""
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from providers import NHentaiProvider, ProviderRegistry, USER_AGENT
 from manga_core import QueueTask, calculate_task_estimates
 
